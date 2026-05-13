@@ -62,12 +62,26 @@
 </div>
 
 <script>
-  // Supabase 연결
+  // ==========================================
+  // 1. 방화벽 차단 대비 안전한 데이터베이스 연결
+  // ==========================================
+  let supabase;
   const SUPABASE_URL = 'https://arqhczasrhqfubwollkx.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_aXBje2pk--lqzWTZL3oWaQ_YjOptT9r';
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // 사번 리스트
+  try {
+    if (window.supabase) {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } else {
+      console.error("보안망에 의해 외부 라이브러리가 차단되었습니다.");
+    }
+  } catch (error) {
+    console.error("데이터베이스 초기화 실패:", error);
+  }
+
+  // ==========================================
+  // 2. 기본 데이터 세팅
+  // ==========================================
   const validEmpIds = [
     "12340000", 
     "19740001", "20080028", "20260017", "20220042", "20250012", "20190094", "20090001", 
@@ -81,24 +95,17 @@
     "20230016", "20090026"
   ]; 
 
-  // 설문 문항
   const questions = [
-    "음식의 전반적인 맛은 어떠합니까?", 
-    "간의 적절성 (짜거나 싱겁지 않음)", 
-    "밥과 국의 온도는 적절합니까?", 
-    "식재료의 신선함이 느껴집니까?", 
-    "메뉴의 다양성 (매일 바뀌는 정도)", 
-    "영양 균형 (고기, 채소 등의 조화)", 
-    "선호하는 메뉴가 자주 나옵니까?", 
-    "후식(음료, 과일 등) 제공에 만족하십니까?", 
-    "배식대 및 식사 테이블의 청결도", 
-    "식기류(수저, 식판)의 세척 상태", 
+    "음식의 전반적인 맛은 어떠합니까?", "간의 적절성 (짜거나 싱겁지 않음)", 
+    "밥과 국의 온도는 적절합니까?", "식재료의 신선함이 느껴집니까?", 
+    "메뉴의 다양성 (매일 바뀌는 정도)", "영양 균형 (고기, 채소 등의 조화)", 
+    "선호하는 메뉴가 자주 나옵니까?", "후식(음료, 과일 등) 제공에 만족하십니까?", 
+    "배식대 및 식사 테이블의 청결도", "식기류(수저, 식판)의 세척 상태", 
     "조리원 및 배식 직원의 친절도"
   ];
 
   let currentEmpId = "";
 
-  // 질문 렌더링
   const tbody = document.getElementById('question-body');
   questions.forEach((q, index) => {
     const qNum = index + 1;
@@ -110,12 +117,13 @@
     tbody.innerHTML += rowHtml;
   });
 
-  // ★ 요청하신 로그인 로직 (통합 안내창 추가) ★
-  window.login = function() {
+  // ==========================================
+  // 3. 에러에 강한 로그인 및 작동 함수들
+  // ==========================================
+  function login() {
     const empId = document.getElementById('empId').value.trim();
     const pw = document.getElementById('pw').value;
 
-    // 1. 관리자 사번 및 비밀번호가 모두 맞을 때
     if (empId === '12340000' && pw === 'paseco123!') {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('dashboard-screen').classList.remove('hidden');
@@ -123,7 +131,6 @@
       return;
     }
 
-    // 2. 일반 사번 리스트에 있고 비밀번호가 맞을 때
     if (validEmpIds.includes(empId) && pw === 'paseco123!') {
       currentEmpId = empId;
       document.getElementById('login-screen').classList.add('hidden');
@@ -131,15 +138,19 @@
       return;
     }
 
-    // 3. 위 조건에 맞지 않으면 (사번이 없거나 비밀번호가 틀림)
+    // 로그인 실패 시 안내창 띄우기
     alert("사번 또는 비밀번호를 확인해주세요.");
-  };
+  }
 
-  // 설문 제출 로직
-  window.submitSurvey = async function() {
+  async function submitSurvey() {
+    // 사내망 차단 확인
+    if (!supabase) {
+      alert("⚠️ 사내 보안망(방화벽)으로 인해 데이터 제출이 차단되었습니다.\n스마트폰에서 'Wi-Fi를 끄고 모바일 데이터(LTE/5G)'로 접속하여 제출해 주세요.");
+      return;
+    }
+
     const dept = document.getElementById('dept').value;
     const jobTitle = document.getElementById('jobTitle').value;
-    
     let surveyData = { emp_id: currentEmpId, department: dept, job_title: jobTitle };
     
     for(let i=1; i<=11; i++) {
@@ -158,10 +169,14 @@
       alert("설문이 성공적으로 제출되었습니다. 소중한 의견 감사합니다!");
       location.reload(); 
     }
-  };
+  }
 
-  // 대시보드 로직
-  window.loadDashboard = async function() {
+  async function loadDashboard() {
+    if (!supabase) {
+      document.getElementById('stats-container').innerText = "사내 보안망 차단으로 인해 통계 데이터를 불러올 수 없습니다.";
+      return;
+    }
+
     const { data, error } = await supabase.from('cafeteria_survey').select('*');
     if (error) { 
       document.getElementById('stats-container').innerText = "데이터 불러오기 실패: " + error.message; 
@@ -174,7 +189,6 @@
     }
 
     let html = `<p><strong>총 참여 인원:</strong> ${data.length}명</p>`;
-    
     questions.forEach((q, index) => {
       const qNum = index + 1;
       const sum = data.reduce((acc, curr) => acc + (curr[`q${qNum}`] || 0), 0);
@@ -183,7 +197,7 @@
     });
 
     document.getElementById('stats-container').innerHTML = html;
-  };
+  }
 </script>
 
 </body>
