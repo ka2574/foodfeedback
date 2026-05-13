@@ -62,7 +62,7 @@
 </div>
 
 <script>
-  // Supabase 연결 설정
+  // Supabase 연결
   const SUPABASE_URL = 'https://arqhczasrhqfubwollkx.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_aXBje2pk--lqzWTZL3oWaQ_YjOptT9r';
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -98,7 +98,7 @@
 
   let currentEmpId = "";
 
-  // 질문 화면에 그리기
+  // 질문 렌더링
   const tbody = document.getElementById('question-body');
   questions.forEach((q, index) => {
     const qNum = index + 1;
@@ -110,34 +110,32 @@
     tbody.innerHTML += rowHtml;
   });
 
-  // 로그인 기능
+  // ★ 요청하신 로그인 로직 (통합 안내창 추가) ★
   window.login = function() {
     const empId = document.getElementById('empId').value.trim();
     const pw = document.getElementById('pw').value;
 
-    if (pw !== 'paseco123!') {
-      alert("비밀번호가 일치하지 않습니다.");
-      return;
-    }
-
-    if (empId === '12340000') {
+    // 1. 관리자 사번 및 비밀번호가 모두 맞을 때
+    if (empId === '12340000' && pw === 'paseco123!') {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('dashboard-screen').classList.remove('hidden');
       loadDashboard();
       return;
     }
 
-    if (!validEmpIds.includes(empId)) { 
-      alert("등록되지 않은 사번입니다."); 
-      return; 
+    // 2. 일반 사번 리스트에 있고 비밀번호가 맞을 때
+    if (validEmpIds.includes(empId) && pw === 'paseco123!') {
+      currentEmpId = empId;
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('survey-screen').classList.remove('hidden');
+      return;
     }
 
-    currentEmpId = empId;
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('survey-screen').classList.remove('hidden');
+    // 3. 위 조건에 맞지 않으면 (사번이 없거나 비밀번호가 틀림)
+    alert("사번 또는 비밀번호를 확인해주세요.");
   };
 
-  // 설문 제출 기능
+  // 설문 제출 로직
   window.submitSurvey = async function() {
     const dept = document.getElementById('dept').value;
     const jobTitle = document.getElementById('jobTitle').value;
@@ -162,7 +160,7 @@
     }
   };
 
-  // 대시보드 불러오기 기능
+  // 대시보드 로직
   window.loadDashboard = async function() {
     const { data, error } = await supabase.from('cafeteria_survey').select('*');
     if (error) { 
