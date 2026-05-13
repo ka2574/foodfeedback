@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>구내식당 식단 만족도 조사</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f5f7; margin: 0; padding: 20px; color: #333; }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1, h2 { text-align: center; color: #2c3e50; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input[type="text"], input[type="password"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    button { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px;}
+    button:hover { background-color: #2980b9; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+    th { background-color: #f8f9fa; }
+    .question-row { text-align: left; background-color: #fff; }
+    .hidden { display: none; }
+    .stat-card { background: #e8f4f8; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div id="login-screen">
+    <h1>식단 만족도 조사</h1>
+    <p style="text-align:center; color:#666;">사번과 비밀번호를 입력해주세요.</p>
+    <div class="form-group">
+      <label>사번</label>
+      <input type="text" id="empId" placeholder="사번을 입력하세요">
+    </div>
+    <div class="form-group">
+      <label>비밀번호</label>
+      <input type="password" id="pw" placeholder="비밀번호를 입력하세요">
+    </div>
+    <button onclick="login()">로그인</button>
+  </div>
+
+  <div id="survey-screen" class="hidden">
+    <h2>구내식당 식단 만족도 조사</h2>
+    <div class="form-group"><label>소속 부서</label><input type="text" id="dept" placeholder="예: 인사총무팀"></div>
+    <div class="form-group"><label>직급</label><input type="text" id="jobTitle" placeholder="예: 대리"></div>
+    
+    <table id="surveyTable">
+      <thead>
+        <tr>
+          <th>평가 항목</th><th>매우불만족<br>(1점)</th><th>불만족<br>(2점)</th><th>보통<br>(3점)</th><th>만족<br>(4점)</th><th>매우만족<br>(5점)</th>
+        </tr>
+      </thead>
+      <tbody id="question-body">
+        </tbody>
+    </table>
+    <button onclick="submitSurvey()">설문 제출하기</button>
+  </div>
+
+  <div id="dashboard-screen" class="hidden">
+    <h2>관리자 대시보드 (통계)</h2>
+    <div id="stats-container">데이터를 불러오는 중입니다...</div>
+  </div>
+</div>
+
+<script>
+  // 1. 새롭게 발급받으신 Supabase 정보 연결 완료
+  const SUPABASE_URL = 'https://arqhczasrhqfubwollkx.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_aXBje2pk--lqzWTZL3oWaQ_YjOptT9r';
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // 2. 사번 리스트 (관리자 사번 12340000 포함)
+  const validEmpIds = [
+    "12340000", 
+    "19740001", "20080028", "20260017", "20220042", "20250012", "20190094", "20090001", 
+    "19930571", "20140080", "20240018", "20250008", "20210022", "20260006", "20260009", 
+    "20190144", "20230006", "20240019", "20000479", "20120030", "19980120", "20190005", 
+    "20250021", "20150004", "20230004", "20230005", "20260016", "20130011", "20010068", 
+    "20070062", "20090038", "20090041", "20250016", "20060014", "20000110", "20040180", 
+    "20100012", "20110036", "20150024", "20210064", "20220008", "20240033", "20250025", 
+    "20250030", "20250031", "20090049", "20100049", "20060018", "20120053", "20160012", 
+    "20130024", "20080008", "20090054", "20090088", "20100071", "20130008", "20220076", 
+    "20230016", "20090026"
+  ]; 
+
+  // 설문 문항 구성
+  const questions = [
+    "음식의 전반적인 맛은 어떠합니까?", 
+    "간의 적절성 (짜거나 싱겁지 않음)", 
+    "밥과 국의 온도는 적절합니까?", 
+    "식재료의 신선함이 느껴집니까?", 
+    "메뉴의 다양성 (매일 바뀌는 정도)", 
+    "영양 균형 (고기, 채소 등의 조화)", 
+    "선호하는 메뉴가 자주 나옵니까?", 
+    "후식(음료, 과일 등) 제공에 만족하십니까?", 
+    "배식대 및 식사 테이블의 청결도", 
+    "식기류(수저, 식판)의 세척 상태", 
+    "조리원 및 배식 직원의 친절도"
+  ];
+
+  let currentEmpId = "";
+
+  // 질문 렌더링
+  const tbody = document.getElementById('question-body');
+  questions.forEach((q, index) => {
+    const qNum = index + 1;
+    let rowHtml = `<tr><td class="question-row">${qNum}. ${q}</td>`;
+    for(let i=1; i<=5; i++) {
+      rowHtml += `<td><input type="radio" name="q${qNum}" value="${i}"></td>`;
+    }
+    rowHtml += `</tr>`;
+    tbody.innerHTML += rowHtml;
+  });
+
+  // 로그인 로직
+  function login() {
+    const empId = document.getElementById('empId').value.trim();
+    const pw = document.getElementById('pw').value;
+
+    if (pw !== 'paseco123!') {
+      alert("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    // 관리자 사번 확인
+    if (empId === '12340000') {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('dashboard-screen').classList.remove('hidden');
+      loadDashboard();
+      return;
+    }
+
+    // 일반 사번 확인
+    if (!validEmpIds.includes(empId)) { 
+      alert("등록되지 않은 사번입니다."); 
+      return; 
+    }
+
+    currentEmpId = empId;
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('survey-screen').classList.remove('hidden');
+  }
+
+  // 설문 제출 로직
+  async function submitSurvey() {
+    const dept = document.getElementById('dept').value;
+    const jobTitle = document.getElementById('jobTitle').value;
+    
+    let surveyData = { emp_id: currentEmpId, department: dept, job_title: jobTitle };
+    
+    // 라디오 버튼 선택 값 수집
+    for(let i=1; i<=11; i++) {
+      const selected = document.querySelector(`input[name="q${i}"]:checked`);
+      if(!selected) {
+        alert(`${i}번 문항을 평가해주세요.`);
+        return;
+      }
+      surveyData[`q${i}`] = parseInt(selected.value);
+    }
+
+    // Supabase에 데이터 저장
+    const { error } = await supabase.from('cafeteria_survey').insert([surveyData]);
+    if (error) {
+      alert("데이터 저장 오류가 발생했습니다: " + error.message);
+    } else {
+      alert("설문이 성공적으로 제출되었습니다. 소중한 의견 감사합니다!");
+      location.reload(); // 제출 후 새로고침
+    }
+  }
+
+  // 대시보드 로직
+  async function loadDashboard() {
+    const { data, error } = await supabase.from('cafeteria_survey').select('*');
+    if (error) { 
+      document.getElementById('stats-container').innerText = "데이터 불러오기 실패: " + error.message; 
+      return; 
+    }
+    
+    if (!data || data.length === 0) {
+      document.getElementById('stats-container').innerText = "아직 제출된 설문이 없습니다.";
+      return;
+    }
+
+    let html = `<p><strong>총 참여 인원:</strong> ${data.length}명</p>`;
+    
+    questions.forEach((q, index) => {
+      const qNum = index + 1;
+      const sum = data.reduce((acc, curr) => acc + (curr[`q${qNum}`] || 0), 0);
+      const avg = (sum / data.length).toFixed(2);
+      html += `<div class="stat-card"><strong>Q${qNum}. ${q}</strong><br>평균 점수: ${avg} / 5.0 점</div>`;
+    });
+
+    document.getElementById('stats-container').innerHTML = html;
+  }
+</script>
+
+</body>
+</html>
