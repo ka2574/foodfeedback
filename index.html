@@ -2,23 +2,30 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>구내식당 식단 만족도 조사</title>
+  <title>2026 구내식당 식단 만족도 조사</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f5f7; margin: 0; padding: 20px; color: #333; }
-    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-    h1, h2 { text-align: center; color: #2c3e50; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input[type="text"], input[type="password"] { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-    button { width: 100%; padding: 12px; background-color: #3498db; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px;}
-    button:hover { background-color: #2980b9; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+    .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h1, h2, h3 { text-align: center; color: #2c3e50; }
+    h3 { text-align: left; margin-top: 30px; border-bottom: 2px solid #10b981; padding-bottom: 10px;}
+    .form-group { margin-bottom: 20px; }
+    label { display: block; margin-bottom: 8px; font-weight: bold; }
+    input[type="text"], input[type="password"], select, textarea { width: 100%; padding: 12px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+    textarea { resize: vertical; min-height: 80px; }
+    button { width: 100%; padding: 14px; background-color: #10b981; color: white; border: none; border-radius: 4px; font-size: 18px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+    button:hover { background-color: #059669; }
+    table { width: 100%; border-collapse: collapse; margin-top: 25px; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
     th { background-color: #f8f9fa; }
-    .question-row { text-align: left; background-color: #fff; }
+    .question-row { text-align: left; background-color: #fff; font-weight: 500; }
+    .category-badge { color: #10b981; font-weight: bold; margin-right: 5px; font-size: 14px; }
     .hidden { display: none; }
-    .stat-card { background: #e8f4f8; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+    .stat-card { background: #ecfdf5; padding: 20px; margin-bottom: 15px; border-radius: 8px; border-left: 5px solid #10b981; text-align: left;}
+    .text-responses { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+    .text-responses h4 { margin-top: 0; color: #2c3e50; }
+    .text-responses ul { margin: 0; padding-left: 20px; text-align: left; max-height: 200px; overflow-y: auto; }
+    .text-responses li { margin-bottom: 8px; font-size: 15px; }
   </style>
 </head>
 <body>
@@ -26,7 +33,7 @@
 <div class="container">
   <div id="login-screen">
     <h1>식단 만족도 조사</h1>
-    <p style="text-align:center; color:#666;">사번과 비밀번호를 입력해주세요.</p>
+    <p style="text-align:center; color:#666; margin-bottom: 20px;">사번과 비밀번호를 입력해주세요.</p>
     <div class="form-group">
       <label>사번</label>
       <input type="text" id="empId" placeholder="사번을 입력하세요">
@@ -39,77 +46,81 @@
   </div>
 
   <div id="survey-screen" class="hidden">
-    <h2>구내식당 식단 만족도 조사</h2>
-    <div class="form-group"><label>소속 부서</label><input type="text" id="dept" placeholder="예: 인사총무팀"></div>
-    <div class="form-group"><label>직급</label><input type="text" id="jobTitle" placeholder="예: 대리"></div>
+    <h2>만족도 설문지</h2>
+    <div class="form-group" style="margin-top: 20px;">
+      <label>구분 (직군)</label>
+      <select id="userCategory">
+        <option value="">-- 선택하세요 --</option>
+        <option value="간접직">간접직</option>
+        <option value="직접직">직접직</option>
+      </select>
+    </div>
     
-    <table id="surveyTable">
+    <table>
       <thead>
         <tr>
-          <th>평가 항목</th><th>매우불만족<br>(1점)</th><th>불만족<br>(2점)</th><th>보통<br>(3점)</th><th>만족<br>(4점)</th><th>매우만족<br>(5점)</th>
+          <th style="width: 45%;">평가 항목</th>
+          <th>매우불만<br>(1)</th><th>불만<br>(2)</th><th>보통<br>(3)</th><th>만족<br>(4)</th><th>매우만족<br>(5)</th>
         </tr>
       </thead>
-      <tbody id="question-body">
-        </tbody>
+      <tbody id="question-body"></tbody>
     </table>
+
+    <div style="margin-top: 30px; background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+      <div class="form-group">
+        <label><span class="category-badge">[종합/건의]</span> 13. 가장 맛있었던 메뉴 (선택사항)</label>
+        <input type="text" id="q13" placeholder="예: 돈까스, 제육볶음 등 자유롭게 적어주세요.">
+      </div>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label><span class="category-badge">[종합/건의]</span> 14. 개선 바라는 점 (선택사항)</label>
+        <textarea id="q14" placeholder="자유로운 의견을 적어주세요."></textarea>
+      </div>
+    </div>
+
     <button onclick="submitSurvey()">설문 제출하기</button>
   </div>
 
   <div id="dashboard-screen" class="hidden">
-    <h2>관리자 대시보드 (통계)</h2>
-    <div id="stats-container">데이터를 불러오는 중입니다...</div>
+    <h2>관리자 통계 대시보드</h2>
+    <div id="stats-container" style="margin-top: 20px; text-align: center;">데이터를 불러오는 중입니다...</div>
+    <button onclick="location.reload()" style="background-color: #64748b;">로그아웃</button>
   </div>
 </div>
 
 <script>
-  // ==========================================
-  // 1. 방화벽 차단 대비 안전한 데이터베이스 연결
-  // ==========================================
-  let supabase;
+  let supabaseClient = null;
   const SUPABASE_URL = 'https://arqhczasrhqfubwollkx.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_aXBje2pk--lqzWTZL3oWaQ_YjOptT9r';
 
   try {
-    if (window.supabase) {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    } else {
-      console.error("보안망에 의해 외부 라이브러리가 차단되었습니다.");
-    }
-  } catch (error) {
-    console.error("데이터베이스 초기화 실패:", error);
-  }
+    if (window.supabase) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  } catch(e) { console.error("DB 연결 오류", e); }
 
-  // ==========================================
-  // 2. 기본 데이터 세팅
-  // ==========================================
-  const validEmpIds = [
-    "12340000", 
-    "19740001", "20080028", "20260017", "20220042", "20250012", "20190094", "20090001", 
-    "19930571", "20140080", "20240018", "20250008", "20210022", "20260006", "20260009", 
-    "20190144", "20230006", "20240019", "20000479", "20120030", "19980120", "20190005", 
-    "20250021", "20150004", "20230004", "20230005", "20260016", "20130011", "20010068", 
-    "20070062", "20090038", "20090041", "20250016", "20060014", "20000110", "20040180", 
-    "20100012", "20110036", "20150024", "20210064", "20220008", "20240033", "20250025", 
-    "20250030", "20250031", "20090049", "20100049", "20060018", "20120053", "20160012", 
-    "20130024", "20080008", "20090054", "20090088", "20100071", "20130008", "20220076", 
-    "20230016", "20090026"
-  ]; 
+  const validEmpIds = ["12340000", "19740001", "20080028", "20260017", "20220042", "20250012", "20190094", "20090001", "19930571", "20140080", "20240018", "20250008", "20210022", "20260006", "20260009", "20190144", "20230006", "20240019", "20000479", "20120030", "19980120", "20190005", "20250021", "20150004", "20230004", "20230005", "20260016", "20130011", "20010068", "20070062", "20090038", "20090041", "20250016", "20060014", "20000110", "20040180", "20100012", "20110036", "20150024", "20210064", "20220008", "20240033", "20250025", "20250030", "20250031", "20090049", "20100049", "20060018", "20120053", "20160012", "20130024", "20080008", "20090054", "20090088", "20100071", "20130008", "20220076", "20230016", "20090026"]; 
 
-  const questions = [
-    "음식의 전반적인 맛은 어떠합니까?", "간의 적절성 (짜거나 싱겁지 않음)", 
-    "밥과 국의 온도는 적절합니까?", "식재료의 신선함이 느껴집니까?", 
-    "메뉴의 다양성 (매일 바뀌는 정도)", "영양 균형 (고기, 채소 등의 조화)", 
-    "선호하는 메뉴가 자주 나옵니까?", "후식(음료, 과일 등) 제공에 만족하십니까?", 
-    "배식대 및 식사 테이블의 청결도", "식기류(수저, 식판)의 세척 상태", 
-    "조리원 및 배식 직원의 친절도"
+  // 객관식 1~12번 문항 세팅
+  const objQuestions = [
+    { category: "맛과 품질", text: "음식의 전반적인 맛은 어떠합니까?" },
+    { category: "맛과 품질", text: "간의 적절성 (짜거나 싱겁지 않음)" },
+    { category: "맛과 품질", text: "음식의 온도는 적절합니까?" },
+    { category: "맛과 품질", text: "식재료의 신선함이 느껴집니까?" },
+    { category: "메뉴 구성", text: "메뉴의 다양성 (매일 바뀌는 정도)" },
+    { category: "메뉴 구성", text: "선호하는 메뉴가 자주 나옵니까?" },
+    { category: "위생/친절", text: "배식대 및 식사 테이블의 청결도" },
+    { category: "위생/친절", text: "식기류(수저, 식판)의 세척 상태" },
+    { category: "시설/운영", text: "배식 대기 시간의 적절성" },
+    { category: "시설/운영", text: "식당 내부 조명, 냉난방 등 쾌적함" },
+    { category: "시설/운영", text: "잔반 처리 및 퇴식구 이용의 편리성" },
+    { category: "종합/건의", text: "구내식당을 주변에 추천할 의향이 있습니까?" }
   ];
 
   let currentEmpId = "";
 
+  // 표 생성 (객관식)
   const tbody = document.getElementById('question-body');
-  questions.forEach((q, index) => {
+  objQuestions.forEach((q, index) => {
     const qNum = index + 1;
-    let rowHtml = `<tr><td class="question-row">${qNum}. ${q}</td>`;
+    let rowHtml = `<tr><td class="question-row"><span class="category-badge">[${q.category}]</span><br>${qNum}. ${q.text}</td>`;
     for(let i=1; i<=5; i++) {
       rowHtml += `<td><input type="radio" name="q${qNum}" value="${i}"></td>`;
     }
@@ -117,10 +128,8 @@
     tbody.innerHTML += rowHtml;
   });
 
-  // ==========================================
-  // 3. 에러에 강한 로그인 및 작동 함수들
-  // ==========================================
-  function login() {
+  // 로그인 로직
+  window.login = function() {
     const empId = document.getElementById('empId').value.trim();
     const pw = document.getElementById('pw').value;
 
@@ -137,68 +146,93 @@
       document.getElementById('survey-screen').classList.remove('hidden');
       return;
     }
-
-    // 로그인 실패 시 안내창 띄우기
     alert("사번 또는 비밀번호를 확인해주세요.");
-  }
+  };
 
-  async function submitSurvey() {
-    // 사내망 차단 확인
-    if (!supabase) {
-      alert("⚠️ 사내 보안망(방화벽)으로 인해 데이터 제출이 차단되었습니다.\n스마트폰에서 'Wi-Fi를 끄고 모바일 데이터(LTE/5G)'로 접속하여 제출해 주세요.");
-      return;
-    }
-
-    const dept = document.getElementById('dept').value;
-    const jobTitle = document.getElementById('jobTitle').value;
-    let surveyData = { emp_id: currentEmpId, department: dept, job_title: jobTitle };
+  // 제출 로직
+  window.submitSurvey = async function() {
+    if (!supabaseClient) { alert("보안망 차단으로 인해 제출할 수 없습니다. Wi-Fi를 끄고 데이터로 접속해 주세요."); return; }
     
-    for(let i=1; i<=11; i++) {
+    const category = document.getElementById('userCategory').value;
+    if(!category) { alert("구분(직군)을 선택해주세요."); return; }
+
+    let surveyData = { emp_id: currentEmpId, department: category }; 
+    
+    // 객관식 1~12 필수 체크
+    for(let i=1; i<=12; i++) {
       const selected = document.querySelector(`input[name="q${i}"]:checked`);
-      if(!selected) {
-        alert(`${i}번 문항을 평가해주세요.`);
-        return;
-      }
+      if(!selected) { alert(`${i}번 객관식 문항을 선택해주세요.`); return; }
       surveyData[`q${i}`] = parseInt(selected.value);
     }
 
-    const { error } = await supabase.from('cafeteria_survey').insert([surveyData]);
-    if (error) {
-      alert("데이터 저장 오류가 발생했습니다: " + error.message);
-    } else {
-      alert("설문이 성공적으로 제출되었습니다. 소중한 의견 감사합니다!");
-      location.reload(); 
-    }
-  }
+    // 주관식 13, 14 (선택사항)
+    surveyData.q13 = document.getElementById('q13').value.trim();
+    surveyData.q14 = document.getElementById('q14').value.trim();
 
-  async function loadDashboard() {
-    if (!supabase) {
-      document.getElementById('stats-container').innerText = "사내 보안망 차단으로 인해 통계 데이터를 불러올 수 없습니다.";
-      return;
-    }
+    const { error } = await supabaseClient.from('cafeteria_survey').insert([surveyData]);
+    if (error) { alert("오류가 발생했습니다: " + error.message); }
+    else { alert("설문이 성공적으로 제출되었습니다. 소중한 의견 감사합니다!"); location.reload(); }
+  };
 
-    const { data, error } = await supabase.from('cafeteria_survey').select('*');
-    if (error) { 
-      document.getElementById('stats-container').innerText = "데이터 불러오기 실패: " + error.message; 
-      return; 
-    }
-    
-    if (!data || data.length === 0) {
-      document.getElementById('stats-container').innerText = "아직 제출된 설문이 없습니다.";
-      return;
-    }
+  // 관리자 통계 대시보드 로직
+  window.loadDashboard = async function() {
+    if (!supabaseClient) { document.getElementById('stats-container').innerHTML = "<p style='color:red;'>보안망 차단됨. 모바일로 확인하세요.</p>"; return; }
 
-    let html = `<p><strong>총 참여 인원:</strong> ${data.length}명</p>`;
-    questions.forEach((q, index) => {
+    const { data, error } = await supabaseClient.from('cafeteria_survey').select('*');
+    if (error) { document.getElementById('stats-container').innerText = "오류: " + error.message; return; }
+    if (!data || data.length === 0) { document.getElementById('stats-container').innerText = "제출된 데이터가 없습니다."; return; }
+
+    let html = `<p style="font-size: 20px; margin-bottom: 20px;"><strong>총 참여 인원:</strong> ${data.length}명</p>`;
+
+    // 1. 분야별 평균 계산
+    let categoryStats = {};
+    objQuestions.forEach((q, index) => {
+      const qNum = index + 1;
+      const sum = data.reduce((acc, curr) => acc + (curr[`q${qNum}`] || 0), 0);
+      if (!categoryStats[q.category]) categoryStats[q.category] = { totalScore: 0, count: 0 };
+      categoryStats[q.category].totalScore += sum;
+      categoryStats[q.category].count += data.length;
+    });
+
+    html += `<h3>📊 분야별 평균 점수</h3>`;
+    html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 30px;">`;
+    for (const cat in categoryStats) {
+      const avg = (categoryStats[cat].totalScore / categoryStats[cat].count).toFixed(2);
+      html += `
+        <div style="background: #2c3e50; color: white; padding: 15px; border-radius: 8px; flex: 1; min-width: 130px; text-align: center;">
+          <div style="font-size: 14px; color: #10b981; margin-bottom: 5px;">${cat}</div>
+          <div style="font-size: 24px; font-weight: bold;">${avg}점</div>
+        </div>`;
+    }
+    html += `</div>`;
+
+    // 2. 개별 문항(객관식) 상세 평균
+    html += `<h3>📝 객관식 개별 문항 점수</h3>`;
+    objQuestions.forEach((q, index) => {
       const qNum = index + 1;
       const sum = data.reduce((acc, curr) => acc + (curr[`q${qNum}`] || 0), 0);
       const avg = (sum / data.length).toFixed(2);
-      html += `<div class="stat-card"><strong>Q${qNum}. ${q}</strong><br>평균 점수: ${avg} / 5.0 점</div>`;
+      html += `<div class="stat-card"><strong><span class="category-badge">[${q.category}]</span> ${qNum}. ${q.text}</strong><br><span style="font-size:18px; font-weight:bold;">평균: ${avg} / 5.0 점</span></div>`;
     });
 
-    document.getElementById('stats-container').innerHTML = html;
-  }
-</script>
+    // 3. 주관식 답변 리스트 보여주기
+    html += `<h3>💬 주관식 응답 내역</h3>`;
+    html += `<div style="display:flex; gap:20px; flex-wrap:wrap;">`;
+    
+    // 13번 메뉴
+    html += `<div class="text-responses" style="flex:1; min-width:300px;">
+               <h4>13. 가장 맛있었던 메뉴</h4><ul>`;
+    data.forEach(row => { if(row.q13) html += `<li>- ${row.q13}</li>`; });
+    html += `</ul></div>`;
 
+    // 14번 건의사항
+    html += `<div class="text-responses" style="flex:1; min-width:300px;">
+               <h4>14. 개선 바라는 점</h4><ul>`;
+    data.forEach(row => { if(row.q14) html += `<li>- ${row.q14}</li>`; });
+    html += `</ul></div></div>`;
+
+    document.getElementById('stats-container').innerHTML = html;
+  };
+</script>
 </body>
 </html>
