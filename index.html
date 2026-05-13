@@ -62,12 +62,12 @@
 </div>
 
 <script>
-  // 1. 새롭게 발급받으신 Supabase 정보 연결 완료
+  // Supabase 연결 설정
   const SUPABASE_URL = 'https://arqhczasrhqfubwollkx.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_aXBje2pk--lqzWTZL3oWaQ_YjOptT9r';
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  // 2. 사번 리스트 (관리자 사번 12340000 포함)
+  // 사번 리스트
   const validEmpIds = [
     "12340000", 
     "19740001", "20080028", "20260017", "20220042", "20250012", "20190094", "20090001", 
@@ -81,7 +81,7 @@
     "20230016", "20090026"
   ]; 
 
-  // 설문 문항 구성
+  // 설문 문항
   const questions = [
     "음식의 전반적인 맛은 어떠합니까?", 
     "간의 적절성 (짜거나 싱겁지 않음)", 
@@ -98,7 +98,7 @@
 
   let currentEmpId = "";
 
-  // 질문 렌더링
+  // 질문 화면에 그리기
   const tbody = document.getElementById('question-body');
   questions.forEach((q, index) => {
     const qNum = index + 1;
@@ -110,8 +110,8 @@
     tbody.innerHTML += rowHtml;
   });
 
-  // 로그인 로직
-  function login() {
+  // 로그인 기능
+  window.login = function() {
     const empId = document.getElementById('empId').value.trim();
     const pw = document.getElementById('pw').value;
 
@@ -120,7 +120,6 @@
       return;
     }
 
-    // 관리자 사번 확인
     if (empId === '12340000') {
       document.getElementById('login-screen').classList.add('hidden');
       document.getElementById('dashboard-screen').classList.remove('hidden');
@@ -128,7 +127,6 @@
       return;
     }
 
-    // 일반 사번 확인
     if (!validEmpIds.includes(empId)) { 
       alert("등록되지 않은 사번입니다."); 
       return; 
@@ -137,16 +135,15 @@
     currentEmpId = empId;
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('survey-screen').classList.remove('hidden');
-  }
+  };
 
-  // 설문 제출 로직
-  async function submitSurvey() {
+  // 설문 제출 기능
+  window.submitSurvey = async function() {
     const dept = document.getElementById('dept').value;
     const jobTitle = document.getElementById('jobTitle').value;
     
     let surveyData = { emp_id: currentEmpId, department: dept, job_title: jobTitle };
     
-    // 라디오 버튼 선택 값 수집
     for(let i=1; i<=11; i++) {
       const selected = document.querySelector(`input[name="q${i}"]:checked`);
       if(!selected) {
@@ -156,18 +153,17 @@
       surveyData[`q${i}`] = parseInt(selected.value);
     }
 
-    // Supabase에 데이터 저장
     const { error } = await supabase.from('cafeteria_survey').insert([surveyData]);
     if (error) {
       alert("데이터 저장 오류가 발생했습니다: " + error.message);
     } else {
       alert("설문이 성공적으로 제출되었습니다. 소중한 의견 감사합니다!");
-      location.reload(); // 제출 후 새로고침
+      location.reload(); 
     }
-  }
+  };
 
-  // 대시보드 로직
-  async function loadDashboard() {
+  // 대시보드 불러오기 기능
+  window.loadDashboard = async function() {
     const { data, error } = await supabase.from('cafeteria_survey').select('*');
     if (error) { 
       document.getElementById('stats-container').innerText = "데이터 불러오기 실패: " + error.message; 
@@ -189,7 +185,7 @@
     });
 
     document.getElementById('stats-container').innerHTML = html;
-  }
+  };
 </script>
 
 </body>
